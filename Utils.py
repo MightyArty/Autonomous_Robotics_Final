@@ -5,6 +5,8 @@ Such as the Battery sensor, Optical Flow sensor, Distance sensor and Process ID.
 
 import math
 
+directions_dict = {"leftward": 270, "rightward": 90, "forward": 0, "backward": 180, "forward_right": 40, "forward_left": 320}
+
 # Proportional-Integral-Derivative
 class DronePIDController:
     def __init__(self, kp, ki, kd, max_integral):
@@ -45,10 +47,16 @@ class BatterySensor:
     """
     Battery Sensor class that represents the battery sensor of the drone.
     """
-    def __init__(self, battery_level:int = 100):
-        self._battery_level = battery_level
+    def __init__(self):
+        self._battery_level: float = 100
         self._total_time: int = 4800 # Max time of flight 480 * 10 updates per second
         self._time_passed = self._total_time
+
+    def is_full(self) -> bool:
+        """
+        Check if the battery is full.
+        """
+        return self._battery_level == 100
 
     def update_battery_level(self):
         """
@@ -108,11 +116,20 @@ class DistanceSensor:
     """
     Distance Sensor class that represents the distance sensor of the drone.
     """
-    directions_dict = {"leftward": 270, "rightward": 90, "forward": 0, "backward": 180, "forward_right_diagonal": 40, "forward_left_diagonal": 320}
 
-    def __init__(self, direction, distance:int = 0):
+    def __init__(self, distance:int = 0):
         self._droneGG: int = 120
         self._distance = distance
+        self._direction = None
+
+    def update_direction(self, direction: str):
+        """
+        Update the direction of the drone.
+
+        Parameters
+        --------
+        `direction`: The direction of the drone.
+        """
         self._direction = direction
 
     def distance_update(self, radius, matrix, location, orientation):
@@ -126,7 +143,7 @@ class DistanceSensor:
         `location`: The location of the drone.
         `orientation`: The orientation of the drone.
         """
-        angle = orientation + self.directions_dict[self._direction]
+        angle = orientation + directions_dict[self._direction]
         x = math.cos(math.radians(angle))
         y = math.sin(math.radians(angle))
         dx, dy = location
@@ -154,10 +171,3 @@ class DistanceSensor:
                 return
             count_distance += 1
         self._distance = self._droneGG * 2.5
-
-class InertialMeasurementUnit:
-    """
-    Inertial Measurement Unit class that represents the IMU of the drone.
-    """
-    def __init__(self, start_orientation:int = 0):
-        self.drone_orientation = start_orientation
