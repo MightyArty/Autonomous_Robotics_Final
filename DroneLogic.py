@@ -2,7 +2,7 @@
 The functions and class for the logic of the Drone 2D Simulator.
 """
 
-from Utils import OpticalSensor, DistanceSensor, BatterySensor, DronePIDController, directions_dict
+from Utils import DistanceSensor, BatterySensor, DronePIDController, directions_dict
 import math
 
 class DroneLogic:
@@ -49,8 +49,8 @@ class DroneLogic:
         # ----- Initialize the Battery -----
         self.battery = BatterySensor()
 
-        # ----- Initialize the Optical Sensor -----
-        self.optical_sensor = OpticalSensor()
+        # ----- Drone Raduis -----
+        self.drone_radius = int(15 / 2.5)
 
         # ----- Initialize the Drone PID Controller -----
         self.controller = DronePIDController(0.07, 0, 0.04, 4.5)
@@ -83,8 +83,8 @@ class DroneLogic:
         - `drone_position`: The new position of the drone.
         """
         direction_calculation = self.drone_orientation + directions_dict[desired_direction]
-        x = math.cos(math.radians(direction_calculation)) * self.optical_sensor._currentSpeed
-        y = math.sin(math.radians(direction_calculation)) * self.optical_sensor._currentSpeed
+        x = math.cos(math.radians(direction_calculation)) * 1
+        y = math.sin(math.radians(direction_calculation)) * 1
         return [drone_position[0] + x, drone_position[1] + y]
 
     def update_angle(self, desired_angle) -> None:
@@ -99,15 +99,6 @@ class DroneLogic:
         new_orientation = current_orientation + desired_angle
         # ----- Ensure the angle stays within the 0-359 degree range -----
         self.drone_orientation = new_orientation % 360
-
-    def battery_charge(self) -> None:
-        """
-        Reload the battery of the drone.
-        """
-        self.battery.fill_battery(amount_to_fill=0.5)
-        if self.battery.is_full():
-            self.is_in_charging_station = False
-            self.is_exploring = True
 
     def update_position(self, desired_position) -> None:
         """
@@ -224,5 +215,3 @@ class DroneLogic:
             print(f'No available path left to explore.\nPath: {self.path_to_explore}')
 
         return desired_location
-
-

@@ -85,33 +85,6 @@ class BatterySensor:
         temp_time = self._time_passed / self._total_time
         self._battery_level = temp_time * 100
 
-class OpticalSensor:
-    """
-    Optical Sensor class that represents the optical sensor of the drone.
-    """
-    def __init__(self):
-        self._maxSpeed: int = 3
-        self._currentSpeed: int = 0
-        self._a: float = 1 # acceleration
-
-    def update_speed_a(self):
-        """
-        Update the speed of the drone.
-        """
-        if self._currentSpeed < self._maxSpeed:
-            self._currentSpeed += self._a
-        else:
-            self._currentSpeed += 0
-
-    def update_slow_speed(self):
-        """
-        Update the speed of the drone to slow down.
-        """
-        if self._currentSpeed > 0:
-            self._currentSpeed -= self._a
-        else:
-            self._currentSpeed -= 0
-
 class DistanceSensor:
     """
     Distance Sensor class that represents the distance sensor of the drone.

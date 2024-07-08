@@ -1,10 +1,10 @@
 """
 The main GUI for the Drone 2D Simulator.
 """
-from DroneSimulation import DroneSimulator
+from DroneGUI import DroneGUI
 
 def main():
-    simulation = DroneSimulator()
+    simulation = DroneGUI()
     simulation.run_simulator()
 
 if __name__ == "__main__":
