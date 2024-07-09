@@ -7,21 +7,34 @@ import math
 
 directions_dict = {"leftward": 270, "rightward": 90, "forward": 0, "backward": 180, "forward_right": 40, "forward_left": 320}
 
-# Proportional-Integral-Derivative
 class DronePIDController:
+    """
+    Parameters
+    --------
+    - `kp`: The proportional gain - determines how aggressively the controller reacts to the current error.
+    - `ki`: The integral gain - determines how much the controller accumulates the error over time.
+    - `kd`: The derivative gain - determines how much the controller reacts to the rate at which the error has been changing.
+    - `max_integral`: Limits the integral term to prevent excessive accumulation of past errors.
+    """
     def __init__(self, kp, ki, kd, max_integral):
         self.integral: float = 0.0
         self.last_error: float = 0.0
-        self.first_run: bool = True
         self.kd = kd
         self.kp = kp
         self.ki = ki
         self.max_integral = max_integral
     
-    def update(self, error, dt):
-        if self.first_run:
-            self.first_run = False
-            self.last_error = error
+    def update_pid(self, error, dt):
+        """
+        Proportional-Integral-Derivative control algorithm.
+        This algorithm is used to compute a control output that aism to minimize the error between
+        a desired setpoint and the current state of the system.
+
+        Parameters
+        --------
+        - `error`: The difference between the desired setpoint and the current state of the system.
+        - `dt`: The time difference between the current and previous iteration.
+        """
 
         self.integral += self.ki * error * dt
         self.integral = max(min(self.integral, self.max_integral), -self.max_integral)
@@ -34,14 +47,22 @@ class DronePIDController:
         self.last_error = error
         return control_output
     
-    def increment_kp(self, value):
-        self.kp += value
-
-    def increment_ki(self, value):
-        self.ki += value
-
-    def increment_kd(self, value):
-        self.kd += value
+    @staticmethod
+    def tune_pid(method = 'ziegler-nochols'):
+        if method == 'ziegler-nochols':
+            return {
+                'kp': 0.6,
+                'ki': 1.2,
+                'kd': 0.075,
+                'max_integral': 4.5
+            }
+        else:
+            return {
+                'kp': 0.07,
+                'ki': 0,
+                'kd': 0.04,
+                'max_integral': 4.5
+            }
 
 class BatterySensor:
     """
@@ -49,7 +70,7 @@ class BatterySensor:
     """
     def __init__(self):
         self._battery_level: float = 100
-        self._total_time: int = 4800 # Max time of flight 480 * 10 updates per second
+        self._total_time: int = 4800
         self._time_passed = self._total_time
 
     def is_full(self) -> bool:
@@ -58,7 +79,7 @@ class BatterySensor:
         """
         return self._battery_level == 100
 
-    def update_battery_level(self):
+    def update_battery_level(self) -> None:
         """
         Update the battery level of the drone.
         """
@@ -66,30 +87,11 @@ class BatterySensor:
             self._time_passed -= 1
             temp_time = self._time_passed / self._total_time
             self._battery_level = temp_time * 100
-    
-    def reset_battery_level(self):
-        """
-        Reset the battery level of the drone.
-        """
-        self._battery_level = 100
-        self._time_passed = 4800
-
-    def fill_battery(self, amount_to_fill: int):
-        """
-        Fill the battery of the drone.
-        """
-        time_to_fill = (4800 / 100) * amount_to_fill
-        self._time_passed += time_to_fill
-        if self._time_passed > 4800:
-            self._time_passed = 4800
-        temp_time = self._time_passed / self._total_time
-        self._battery_level = temp_time * 100
 
 class DistanceSensor:
     """
     Distance Sensor class that represents the distance sensor of the drone.
     """
-
     def __init__(self, distance:int = 0):
         self._droneGG: int = 120
         self._distance = distance

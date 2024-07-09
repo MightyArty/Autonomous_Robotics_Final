@@ -1,0 +1,4 @@
+numpy==1.26.4
+tkinter
+pygame
+pillow==10.3.0
