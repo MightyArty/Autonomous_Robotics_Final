@@ -25,6 +25,9 @@ The drone was hitting the walls very often, going into a loop while not discover
     * Narrow controller
 
     Each one of the controllers receving different calibration parameters to correctly navigate and detect walls in different areas such as tight corrdiros.
+
+    Link to the Proportional Integral Derivative calculation formula:
+    https://en.wikipedia.org/wiki/Proportional%E2%80%93integral%E2%80%93derivative_controller
 5. `Sensors`: added 6 sensors to the Drone for each direction to correctly and efficiently detect obstacles on the wasy
     * Forward Distance Sensor
     * Forward-Right Distance Sensor

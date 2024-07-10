@@ -19,7 +19,6 @@ class DroneLogic:
         # ----- Drone Path parameters -----
         self.path_to_start:list = []
         self.path_to_explore:list = []
-        self.is_exploring:bool = False
         self.path = []
 
         # ----- Donre Home flag -----
@@ -142,7 +141,7 @@ class DroneLogic:
         for distance in distance_attributes:
             distance.distance_update(radius=radius, matrix=matrix, location=location, orientation=orientation)
 
-    def switch_wall(self):
+    def toggle_correction_mode(self):
         """
         Switch the drone's correction mode and adjust its angle away from the current wall.
 
@@ -198,44 +197,16 @@ class DroneLogic:
         # Update the drone orientation to the desired angle
         self.drone_orientation = angle
 
-    def explore_last_point(self, current_direction):
-        """
-        After charging, go to the last point before charging to continue exploring.
-
-        Parameters
-        ----------
-        - `current_direction`: The location of the drone.
-        """
-        # Get the next point for the drone to move to
-        desired_location = self.path_to_explore.pop(0)
-
-        # Determine a point to aim the drone at for better orientation
-        desired_direction = self.path_to_explore[2] if len(self.path_to_explore) >= 3 else None
-
-        # If we have reached the end of the path, clear the path and update the exploring flag
-        if not self.path_to_explore:
-            self.path_to_explore.clear()
-            self.is_exploring = False
-
-        # Update the drone's angle to face the determined point if available
-        if desired_direction:
-            self.adjust_angle_to_direction(current_direction=current_direction, desired_direction=desired_direction)
-
-        else:
-            print(f'No available path left to explore.\nPath: {self.path_to_explore}')
-
-        return desired_location
-
     def navigate_last_position(self, drone_position, delta_time) -> list:
         """
-        After charging, navigate until 50%.
+        Navigate until 50%.
 
         Parameters
         ----------
         - drone_position: The current position of the drone.
         - delta_time: The time difference used for PID calculations.
         """
-        proximity_status = self._check_proximity_status()
+        proximity_status = self.check_proximity_status()
 
         if not self.correction_pid:
             if self.drone_right_tilt:
@@ -253,11 +224,11 @@ class DroneLogic:
                     self.drone_right_tilt = True
                 self.correction_pid = True
 
-        overall_correction = self._calculate_pid_adjustments(delta_time)
+        overall_correction = self.calculate_pid_adjustments(delta_time)
         self.update_angle(desired_angle=overall_correction)
         return self.move_drone(drone_position=drone_position, desired_direction="forward")
 
-    def _check_proximity_status(self) -> dict:
+    def check_proximity_status(self) -> dict:
         """
         Check the proximity status of the drone to determine navigation decisions.
 
@@ -288,7 +259,7 @@ class DroneLogic:
             'near_right_wall': near_right_wall
         }
 
-    def _calculate_pid_adjustments(self, delta_time):
+    def calculate_pid_adjustments(self, delta_time):
         """
         Calculate the PID corrections for navigating the drone.
 
@@ -300,9 +271,9 @@ class DroneLogic:
         -------
         - float: The overall correction value, limited to a maximum range.
         """
-        wall_error = self._calculate_wall_proximity_error()
-        forward_error = self._calculate_forward_correction()
-        narrow_path_error = self._calculate_narrow_path_adjustment()
+        wall_error = self.calculate_wall_proximity_error()
+        forward_error = self.calculate_forward_correction()
+        narrow_path_error = self.calculate_narrow_path_adjustment()
 
         wall_correction = self.controller.update_pid(wall_error, delta_time)
         forward_correction = self.forward_controller.update_pid(forward_error, delta_time)
@@ -312,7 +283,7 @@ class DroneLogic:
         max_correction = 10  # Limit the overall correction to a maximum value to avoid excessive adjustments
         return max(-max_correction, min(overall_correction, max_correction))
 
-    def _calculate_wall_proximity_error(self):
+    def calculate_wall_proximity_error(self):
         """
         Calculate the distance error from the wall for PID correction based on the drone's tilt direction.
 
@@ -325,7 +296,7 @@ class DroneLogic:
         distance = self.right_distance._distance if self.drone_right_tilt else self.left_distance._distance
         return direction_multiplier * (distance - self.from_wall)
 
-    def _calculate_forward_correction(self):
+    def calculate_forward_correction(self):
         """
         Calculate the correction needed based on the forward distance to avoid obstacles.
 
@@ -338,7 +309,7 @@ class DroneLogic:
         turning_direction = -2 if self.drone_right_tilt else 2  # Factor determining the turning direction based on tilt
         return forward_distance_error * turning_direction
 
-    def _calculate_narrow_path_adjustment(self):
+    def calculate_narrow_path_adjustment(self):
         """
         Calculate the correction needed when navigating through narrow paths.
 
@@ -355,37 +326,35 @@ class DroneLogic:
         return narrow_path_error  # Return the narrow path error for PID correction
 
     def update_position_algo(self, drone_position, dt, map_matrix, drone_radius):
-            """
-            Update the drone's position algorithm based on its current state.
+        """
+        Update the drone's position algorithm based on its current state.
 
-            Parameters
-            ----------
-            - drone_position: Current position of the drone (tuple of x, y coordinates).
-            - dt: Time difference used for calculations.
-            - map_matrix: 2D list representing the map with obstacles marked as 1.
-            - drone_radius: Radius of the drone for pathfinding considerations.
+        Parameters
+        ----------
+        - drone_position: Current position of the drone (tuple of x, y coordinates).
+        - dt: Time difference used for calculations.
+        - map_matrix: 2D list representing the map with obstacles marked as 1.
+        - drone_radius: Radius of the drone for pathfinding considerations.
 
-            Returns
-            ----------
-            - Tuple: New position for the drone to move towards.
-            """
-            if self.battery._battery_level <= 50 or self.want_to_go_home:
-                return self.return_to_base(map_matrix, drone_position, drone_radius)
-            elif self.at_start_point:
-                self.battery._battery_level = 0
-            elif self.is_exploring:
-                return self.explore_last_point(drone_position)
+        Returns
+        ----------
+        - Tuple: New position for the drone to move towards.
+        """
+        if self.battery._battery_level <= 50 or self.want_to_go_home:
+            return self.return_to_base(map_matrix, drone_position, drone_radius)
+        elif self.at_start_point:
+            self.battery._battery_level = 0
+        else:
+            if not self.about_to_crash and not self.is_in_danger():
+                return self.fly_near_wall(drone_position, dt)
             else:
-                if not self.about_to_crash and not self.is_in_danger():
-                    return self.fly_near_wall(drone_position, dt)
+                if self.about_to_crash:
+                    if not self.is_in_danger():
+                        self.about_to_crash = False
+                    return self.navigate_last_position(drone_position, dt)
                 else:
-                    if self.about_to_crash:
-                        if not self.is_in_danger():
-                            self.about_to_crash = False
-                        return self.navigate_last_position(drone_position, dt)
-                    else:
-                        self.about_to_crash = True
-            return drone_position
+                    self.about_to_crash = True
+        return drone_position
 
     def fly_near_wall(self, drone_pos, dt) -> list:
         """
@@ -405,7 +374,7 @@ class DroneLogic:
             self.relaxation = False
         correction_flag = any(math.sqrt((new_pos[0] - point[0]) ** 2 + (new_pos[1] - point[1]) ** 2) <= 0.5 for point in self.path)
         if not self.relaxation and correction_flag:
-            self.switch_wall()
+            self.toggle_correction_mode()
             self.relaxation = True
             self.relax_time = time.time()
         return new_pos
@@ -563,7 +532,7 @@ class DroneLogic:
         """
         allowed_error = 10
 
-        if self._is_close_to_start(drone_position, allowed_error):
+        if self.is_close_to_start(drone_position, allowed_error):
             self.want_to_go_home = False
             self.at_start_point = True
             self.path_to_start.clear()
@@ -571,7 +540,7 @@ class DroneLogic:
             return drone_position
 
         if self.path_to_start:
-            return self._move_along_path_to_start()
+            return self.move_along_path_to_start()
 
         trail_points_within_radius = self.find_points_within_radius(drone_position, map_matrix, drone_radius)
 
@@ -590,7 +559,7 @@ class DroneLogic:
 
         return next_position
 
-    def _is_close_to_start(self, drone_position, allowed_error):
+    def is_close_to_start(self, drone_position, allowed_error):
         """
         Check if the drone is close to the starting position within the allowed error.
 
@@ -608,7 +577,7 @@ class DroneLogic:
         return (abs(drone_position[0] - start_position[0]) <= allowed_error and
                 abs(drone_position[1] - start_position[1]) <= allowed_error)
 
-    def _move_along_path_to_start(self):
+    def move_along_path_to_start(self):
         """
         Move the drone along the path towards the starting position.
 

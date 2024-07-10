@@ -309,9 +309,8 @@ class DroneGUI:
                 points_to_mark.update(self.generate_correct_points(x, y))
 
         self.found_area.update(points_to_mark)
-        for index, (x, y) in enumerate(points_to_mark):
-            if index % 2 == 0:
-                self.already_explored_area.set_at((x, y), (170, 250, 187))
+        for _, (x, y) in enumerate(points_to_mark):
+            self.already_explored_area.set_at((x, y), (170, 250, 187))
 
         self.found_area_marked.update(points_to_mark)
         self.screen.blit(self.already_explored_area, (0, 0))
